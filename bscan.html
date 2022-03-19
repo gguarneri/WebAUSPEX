@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>title</title>
+    <style>
+        .button {
+            border: 1px solid black ;
+            height: 200px;
+            background-color: orange;
+            height: 24px;
+            font-size: 16px;
+        }
+    </style>
+    <script src="./pyodide.js"></script>
+</head>
+
+<body>
+    B-scan test (now importing files to browser sandbox)<br>
+
+    <div class="form">
+        <label>Escolha algum arquivo do CIVA:</label>
+        <input type="file" id="ctrl" class="button" webkitdirectory directory multiple/>
+    </div>
+    <hr>
+    <p id="fileChosen"></p>
+    <div class="form">
+        <input style="visibility: hidden" type="submit" class="button" value="Run" id="botaoRunning"  disabled>
+    </div>
+    <br>
+
+    <img id="pyplotfigure" style="visibility: hidden"/>
+
+    <script type="text/javascript">
+        let process_string = "";
+        async function main(){
+            let pyodide = await loadPyodide({
+                indexURL : "./"
+            });
+
+            let FS = pyodide._module.FS;
+
+            let fileChosen = '/home/web_user/';
+            let botaoCtrl = document.getElementById('ctrl');
+            botaoCtrl.addEventListener('change', load_files);
+
+            function load_files() {
+                let files = document.getElementById('ctrl').files;
+                fileChosen += files[0].webkitRelativePath.split('/')[0];
+                document.getElementById("fileChosen").innerText = fileChosen;
+                for (let i=0; i < files.length; i++) {
+                    let f = files[i];
+
+                    // Lê o arquivo
+                    let reader = new FileReader();
+
+                    // Associa ações a serem realizada ao final da carga do arquivo
+                    reader.onloadend = function () {
+                        let result=reader.result;
+                        const uint8_view = new Uint8Array(result);
+
+                        // Pega a árvore de diretórios do arquivo
+                        let dirbase = '/home/web_user';
+                        let dirs = f.webkitRelativePath.split('/');
+                        let full_path = dirbase;
+                        if (dirs.length > 1) {
+                            // O arquivo está em uma árvore de diretórios
+                            for (let ii = 0; dirs[ii] !== f.name && ii < dirs.length - 1; ii++) {
+                                if (!dirs[ii]) continue;
+                                full_path += '/' + dirs[ii];
+                            }
+
+                            // Cria a árvore de diretórios
+                            try {
+                                FS.mkdirTree(full_path)
+                            } catch (e) {
+                                console.log(e);
+                            }
+                        }
+
+                        // Gravar o arquivo
+                        let name = full_path + '/' + f.name
+                        try {
+                            FS.writeFile(name, uint8_view);
+                        } catch(e) {
+                            console.log(e);
+                        }
+                    };
+                    reader.readAsArrayBuffer(f);
+                }
+
+                // Acessa botão para processamento
+                botaoRunning = document.getElementById('botaoRunning');
+                botaoRunning.addEventListener('click', process_files)
+                botaoRunning.style.visibility = 'visible';
+                botaoRunning.disabled = false;
+
+                // Mensagem de pronto
+                // document.getElementById("textfield").innerText = "";
+
+                // Esconde imagem até que o processamento esteja pronto
+                document.getElementById("pyplotfigure").style.visibility = 'hidden';
+            }
+
+            async function process_files() {
+                msgRunning = document.createElement('p');
+                msgRunning.id = 'textfield';
+                msgRunning.innerText = 'Running !!!';
+                document.body.appendChild(msgRunning);
+
+                let bscan_code = `
+                        import numpy as np
+                        import matplotlib.pyplot as plt
+                        import io, base64
+
+                        from js import document
+                        from framework.data_types import ImagingROI
+                        from imaging import bscan
+                        from framework import file_civa
+
+                        filechosen = document.getElementById('fileChosen').innerText
+                        data = file_civa.read(filechosen)
+
+                        corner_roi = np.array([-20, 0, 30])[np.newaxis, :]
+                        roi = ImagingROI(corner_roi, height=20.0, width=40.0, h_len=200, w_len=400)
+
+                        # ========== B-Scan ==========
+                        chave1 = bscan.bscan_kernel(data, roi=roi, sel_shot=0, c=5900.0)
+                        image_out_bscan = data.imaging_results[chave1].image
+
+                        my_text = document.getElementById("textfield")
+                        my_text.innerText = "Done !!"
+
+                        fig, ax = plt.subplots()
+                        ax.imshow(image_out_bscan, aspect='auto',
+                                  extent=[roi.w_points[0], roi.w_points[-1], roi.h_points[-1], roi.h_points[0]])
+
+                        iMyPlot = document.getElementById("pyplotfigure")
+                        buf =  io.StringIO()
+                        fig.savefig(buf, format="svg")
+                        buf.seek(0)
+                        imgdata = buf.read()
+                        iMyPlot.setAttribute("src","data:image/svg+xml;base64,"
+                                             + str(base64.b64encode(imgdata.encode()), "ascii"))
+                    `;
+
+                await pyodide.loadPackagesFromImports(bscan_code);
+                await pyodide.runPythonAsync(bscan_code);
+                        // document.getElementById("textfield").innerText = my_string;
+                        // document.getElementById("pyplotfigure").src=pyodide.globals.img_str;
+                        document.getElementById("pyplotfigure").style.visibility = 'visible';
+                        fileChosen = '/home/web_user/';
+                        botaoRunning.disabled = true;
+                        botaoRunning.style.visibility = 'hidden';
+                    // });
+            }
+
+        }
+        main();
+    </script>
+</body>
+</html>
