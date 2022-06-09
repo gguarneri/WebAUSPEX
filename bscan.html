@@ -43,16 +43,16 @@
             let botaoCtrl = document.getElementById('ctrl');
             botaoCtrl.addEventListener('change', load_files);
 
-            FS.mkdir(fileChosen);
-            FS.mount(FS.filesystems.IDBFS, {}, fileChosen);
-
-            FS.syncfs(true,  function (err) {
-                // handle callback
-                console.log(err)
-                future = asyncio.Future()
-                handler =  pyodide.create_once_callable(lambda err: (
-                    f.set_exception(Exception(err)) if err else future.set_result(True)
-            });
+            // FS.mkdir(fileChosen);
+            // FS.mount(FS.filesystems.IDBFS, {}, fileChosen);
+            //
+            // FS.syncfs(true,  function (err) {
+            //     // handle callback
+            //     console.log(err)
+            //     future = asyncio.Future()
+            //     handler =  pyodide.create_once_callable(lambda err: (
+            //         f.set_exception(Exception(err)) if err else future.set_result(True)
+            // });
 
 
             function load_files() {
