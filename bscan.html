@@ -39,14 +39,25 @@
             });
 
             let FS = pyodide._module.FS;
-
-            let fileChosen = '/home/web_user/';
+            let fileChosen = '/home/web_user/work';
             let botaoCtrl = document.getElementById('ctrl');
             botaoCtrl.addEventListener('change', load_files);
 
+            FS.mkdir(fileChosen);
+            FS.mount(FS.filesystems.IDBFS, {}, fileChosen);
+
+            FS.syncfs(true,  function (err) {
+                // handle callback
+                console.log(err)
+                future = asyncio.Future()
+                handler =  pyodide.create_once_callable(lambda err: (
+                    f.set_exception(Exception(err)) if err else future.set_result(True)
+            });
+
+
             function load_files() {
                 let files = document.getElementById('ctrl').files;
-                fileChosen += files[0].webkitRelativePath.split('/')[0];
+                fileChosen += '/' + files[0].webkitRelativePath.split('/')[0];
                 document.getElementById("fileChosen").innerText = fileChosen;
                 for (let i=0; i < files.length; i++) {
                     let f = files[i];
@@ -60,7 +71,7 @@
                         const uint8_view = new Uint8Array(result);
 
                         // Pega a árvore de diretórios do arquivo
-                        let dirbase = '/home/web_user';
+                        let dirbase = '/home/web_user/work';
                         let dirs = f.webkitRelativePath.split('/');
                         let full_path = dirbase;
                         if (dirs.length > 1) {
@@ -108,6 +119,16 @@
                 msgRunning.innerText = 'Running !!!';
                 document.body.appendChild(msgRunning);
 
+                let load_CIVA_code = `
+                        import numpy as np
+                        from framework.data_types import ImagingROI
+                        from framework import file_civa
+                        from js import document
+
+                        filechosen = document.getElementById('fileChosen').innerText
+                        data = file_civa.read(filechosen)
+                `;
+
                 let bscan_code = `
                         import numpy as np
                         import matplotlib.pyplot as plt
@@ -144,14 +165,21 @@
                                              + str(base64.b64encode(imgdata.encode()), "ascii"))
                     `;
 
-                await pyodide.loadPackagesFromImports(bscan_code);
-                await pyodide.runPythonAsync(bscan_code);
+                // await pyodide.loadPackagesFromImports(bscan_code);
+                // await pyodide.runPythonAsync(bscan_code);
+                await pyodide.loadPackagesFromImports(load_CIVA_code);
+                await pyodide.runPythonAsync(load_CIVA_code);
+
+                let probe_params = pyodide.runPython('data.probe_params.type_probe');
+
+                let data = pyodide.globals.get('data').toJs();
+
                         // document.getElementById("textfield").innerText = my_string;
                         // document.getElementById("pyplotfigure").src=pyodide.globals.img_str;
-                        document.getElementById("pyplotfigure").style.visibility = 'visible';
-                        fileChosen = '/home/web_user/';
-                        botaoRunning.disabled = true;
-                        botaoRunning.style.visibility = 'hidden';
+                        // document.getElementById("pyplotfigure").style.visibility = 'visible';
+                        // fileChosen = '/home/web_user/';
+                        // botaoRunning.disabled = true;
+                        // botaoRunning.style.visibility = 'hidden';
                     // });
             }
 

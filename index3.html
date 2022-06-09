@@ -17,31 +17,34 @@
                 x = np.linspace(0, 2.0 * np.pi, 100)
                 y = np.sin(x)
 
-                from matplotlib import pyplot as plt
-                plt.figure()
-                plt.plot(x, y)
+                #from matplotlib import pyplot as plt
+                #plt.figure()
+                #plt.plot(x, y)
 
-                from matplotlib.backends import backend_agg
-                from js import document, ImageData
+                #from matplotlib.backends import backend_agg
+                #from js import document, ImageData
 
-                def create_root_element1(self):
-                    print('my create_root_element!')
-                    div = document.createElement('div')
-                    document.body.appendChild(div)
-                    return div
+                #def create_root_element1(self):
+                #    print('my create_root_element!')
+                #    div = document.createElement('div')
+                #    document.body.appendChild(div)
+                #    return div
 
-                f = plt.gcf()
+                #f = plt.gcf()
 
                 #override create_root_element method of canvas by one of the functions above
-                f.canvas.create_root_element = create_root_element1.__get__(f.canvas, f.canvas.__class__)
+                #f.canvas.create_root_element = create_root_element1.__get__(f.canvas, f.canvas.__class__)
 
-                print('showing')
-                f.canvas.show()
-                print('done')
+                #print('showing')
+                #f.canvas.show()
+                #print('done')
             `;
 
             await pyodide.loadPackagesFromImports(Python_code);
             await pyodide.runPythonAsync(Python_code);
+
+            let x = pyodide.globals.get('x').toJs();
+            let y = pyodide.globals.get('y').toJs();
         }
 
         main()
